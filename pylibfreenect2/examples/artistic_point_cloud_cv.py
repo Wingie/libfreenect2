@@ -77,6 +77,7 @@ canvas_height = 720     # Visualization window height
 view_angle = 0          # Initial view angle
 rotation_speed = 1      # Rotation speed
 auto_rotate = True      # Auto-rotation enabled
+paused = False          # Paused state for auto-rotation
 top_view = False        # Top-down view
 color_shift = 0         # Color cycling parameter
 particle_effect = False # Particle effect
