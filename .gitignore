@@ -158,4 +158,5 @@ Desktop.ini
 $RECYCLE.BIN/
 
 # Mac desktop service store files
+venv/
 .DS_Store
