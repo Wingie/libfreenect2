@@ -539,8 +539,9 @@ try:
                     fps = frame_count / elapsed
                     frame_count = 0
                     start_time = time.time()
-
-                info_text = f"Mode: {art_mode} | Points: {num_points} | FPS: {fps:.1f} | Size: {point_size}"
+                    
+                pause_status = "PAUSED" if paused else ""
+                info_text = f"Mode: {art_mode} | Points: {num_points} | FPS: {fps:.1f} | Size: {point_size} {pause_status}"
                 cv2.putText(canvas, info_text, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 1)
 
                 # Show either the visualization or help screen
@@ -551,7 +552,7 @@ try:
                     previous_frame = canvas.copy()
 
                 # Update auto-rotation
-                if auto_rotate:
+                if auto_rotate and not paused:
                     view_angle = (view_angle + rotation_speed) % 360
 
             else:
@@ -618,6 +619,9 @@ try:
         elif key == ord('d'):
             # Decrease view elevation
             view_elevation = max(view_elevation - 5, -90)
+        elif key == ord(' '):
+            # Toggle pause with spacebar
+            paused = not paused
 
 except KeyboardInterrupt:
     print("\nInterrupted by user")
