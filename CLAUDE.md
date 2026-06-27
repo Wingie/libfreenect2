@@ -123,6 +123,37 @@ cd pylibfreenect2
 python setup.py install
 ```
 
+### Running the Python examples (non-obvious)
+
+The built dylib is NOT on the default search path, so the Python examples fail
+to import without setting it first. Use the project venv:
+
+```bash
+export DYLD_LIBRARY_PATH=~/code/libfreenect2/build/lib   # required on macOS
+source ~/code/libfreenect2/venv/bin/activate
+python pylibfreenect2/examples/Working/colour_pc_viz.py
+```
+
+`pylibfreenect2/examples/Working/` holds the curated, known-good scripts
+(point-cloud viz, multiframe listener). Examples auto-select the depth pipeline
+(OpenGL → OpenCL → CPU) and grab frames via `SyncMultiFrameListener` +
+`frames["color"].asarray()`.
+
+### promap integration (projection mapping)
+
+This repo feeds [promap](https://github.com/Wingie/promap)
+(`~/code/pi-jams/tools/promap`, a sibling structured-light scanning tool) by
+acting as its capture camera. promap opens cameras with `cv2.VideoCapture`,
+which cannot open a Kinect, so the integration lives in
+`pylibfreenect2/examples/Working/`:
+
+- `kinect_capture.py` — reimplements promap's `capture` contract
+  (`get_camera_size`, `capture`) on top of pylibfreenect2.
+- `promap_kinect_scan.py` — monkeypatches `promap.capture` with that adapter and
+  runs promap's pipeline (`pip install -e ~/code/pi-jams/tools/promap` first).
+
+See `PLAN.md` ("Promap: Projection Mapping with Kinect") for the full workflow.
+
 ## Testing Hardware
 
 The library requires:

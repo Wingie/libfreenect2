@@ -1,0 +1,6 @@
+# promap scan raw captures — large and regenerable with the Kinect+projector.
+# Keep the small derived results (lookup/disparity/decoded/light/masks/logs).
+scan*/cap*.png
+scan*/gray*.png
+scan*/thresh*.png
+scan*/dark.png

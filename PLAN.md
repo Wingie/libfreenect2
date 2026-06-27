@@ -631,6 +631,104 @@ Based on analysis, here's the fastest path to a working prototype:
 
 ---
 
-*Last Updated: 2025-10-01*
+---
+
+## Promap: Projection Mapping with Kinect
+
+### Overview
+[promap](https://github.com/Wingie/promap) (`~/code/pi-jams/tools/promap/`) is a structured light scanning tool for projection mapping. It computes the geometric relationship between a projector and camera using gray code patterns, producing lookup tables and disparity maps. These feed into [Radiance](https://radiance.video) as `uvmap` and `mask` inputs.
+
+### What We Learned (2026-03-19)
+
+**Pipeline**: `generate → project → capture → decode → invert → reproject`
+- Generates 24 gray code patterns for a 1920x1080 projector
+- Scanning takes ~1 min (2s per pattern + 5s warmup)
+- Produces `lookup.png` (UV map), `disparity.png` (depth), `light.png` (projector's view)
+
+**Reprojection benchmark** (scipy vs cv2.remap):
+| Method | Latency | FPS |
+|---|---|---|
+| scipy (current) | 424 ms | 2.4 |
+| cv2.remap | 1.7 ms | 603 |
+
+**Live reproject tested**: confirmed working with webcam + synthetic barrel distortion lookup table. Both scipy and cv2.remap versions verified.
+
+### Update (2026-06-22): promap has moved on since the notes above
+
+Re-checking promap's git log, two things in the earlier notes are now stale:
+
+- **Auto-segmentation now exists.** promap gained a `segment/` module (FastSAM +
+  Segment Anything) that auto-segments zones from `light.png`, replacing the
+  manual GIMP painting described below. So "zone painting is manual" is no
+  longer strictly true — `segment/segment.py` / `segment/fastsam.py` can
+  generate the colored zone map, with IoU-based zone tracking for live use.
+- **Reprojection files moved.** `benchmark_reproject.py`, `live_reproject.py`,
+  `live_reproject_fast.py`, and `learnings.md` are now under `reproject/`, not
+  the promap root (commit `9462120`).
+
+### Kinect as Promap Camera — NOW WIRED IN CODE
+
+The Kinect v2 now works as promap's capture device. The adapter lives in this
+repo at `pylibfreenect2/examples/Working/`:
+
+- `kinect_capture.py` — re-implements promap's `capture` contract
+  (`get_camera_size` + `capture`) on top of pylibfreenect2. Returns BGR frames
+  from the Kinect color stream (or IR with `--ir`). Standalone preview:
+  `python kinect_capture.py --preview`.
+- `promap_kinect_scan.py` — monkeypatches `promap.capture` with the adapter and
+  drives promap's real pipeline. Run a scan with:
+  `python promap_kinect_scan.py --screen "<projector>" -w scan -af -v`.
+
+**Why not promap's `--camera` flag:** promap opens cameras via
+`cv2.VideoCapture`, which cannot open a pylibfreenect2 device. The adapter
+bypasses that by patching the `promap.capture` functions directly.
+
+**Setup (verified 2026-06-22):**
+```bash
+export DYLD_LIBRARY_PATH=~/code/libfreenect2/build/lib
+source ~/code/libfreenect2/venv/bin/activate
+pip install -e ~/code/pi-jams/tools/promap   # now installed in this venv
+```
+Wiring verified end-to-end (promap generates 24 gray patterns through the
+patched Kinect capture). Still untested against real hardware: Kinect is in the
+office and no projector acquired yet.
+
+**Advantages of Kinect over a regular webcam:**
+- Built-in depth sensor — could supplement or replace promap's disparity map from gray codes
+- IR stream (`--ir`) — ambient-light invariant, potentially better gray-code decoding
+- Fixed focus — no autofocus drift during scanning
+
+### Radiance Workflow
+1. Scan: `python promap_kinect_scan.py --screen "<projector>" -w scan -af -v`
+   (Kinect), or `promap -af -v` (webcam)
+2. Zone map: auto-segment with `segment/segment.py` on `light.png`, OR paint
+   colored zones manually in GIMP
+3. Import zone map into Radiance as `uvmap` and `mask`
+4. Radiance maps live video/visuals onto the physical object through the projector
+
+### Hardware Needed
+- **Projector** — not yet acquired (blocks the actual scan)
+- **Camera** — webcam works (tested), Kinect v2 wired (in office, untested live)
+- **Radiance** — already running
+
+### Files
+```
+~/code/pi-jams/tools/promap/
+├── promap/                     # main tool (gray/project/capture/decode/reproject)
+├── reproject/                  # benchmark + live reproject tests + learnings.md
+│   ├── benchmark_reproject.py  # scipy vs cv2.remap benchmark
+│   ├── live_reproject.py       # live webcam test (scipy, slow)
+│   ├── live_reproject_fast.py  # live webcam test (cv2.remap, real-time)
+│   └── learnings.md            # detailed findings (incl. Kinect setup)
+└── segment/                    # FastSAM/SAM auto-zone-segmentation (replaces GIMP)
+
+~/code/libfreenect2/pylibfreenect2/examples/Working/
+├── kinect_capture.py           # Kinect -> promap.capture adapter
+└── promap_kinect_scan.py       # runs a promap scan with the Kinect as camera
+```
+
+---
+
+*Last Updated: 2026-03-19*
 *Author: Brainstorming with Claude Code*
-*Project: Kinect v2 + TouchDesigner + Ableton Live on macOS*
+*Project: Kinect v2 + TouchDesigner + Ableton Live + Promap on macOS*
